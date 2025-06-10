@@ -1,36 +1,43 @@
+# main.py (FastAPI backend)
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
-from PIL import Image
-import io
+import shutil
+import uuid
+import os
+import cv2
+import numpy as np
 
 app = FastAPI()
 
-# Allow Vue frontend
+# Allow CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For dev. Restrict in prod.
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 model = YOLO("weights/best.pt")
 
-@app.post("/detect/")
+@app.post("/detect")
 async def detect(file: UploadFile = File(...)):
-    contents = await file.read()
-    image = Image.open(io.BytesIO(contents)).convert("RGB")
+    # Save uploaded image
+    temp_filename = f"temp_{uuid.uuid4()}.jpg"
+    with open(temp_filename, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
 
-    results = model(image)
-    result = results[0]
+    # Run detection
+    results = model(temp_filename)
+    boxes = []
+    for r in results:
+        for box in r.boxes:
+            boxes.append({
+                "class": r.names[int(box.cls)],
+                "confidence": float(box.conf),
+                "bbox": [float(x) for x in box.xyxy[0]]
+            })
 
-    detections = []
-    for box in result.boxes.data.tolist():
-        x1, y1, x2, y2, conf, cls = box
-        detections.append({
-            "class": result.names[int(cls)],
-            "confidence": round(conf, 2),
-            "box": [x1, y1, x2, y2]
-        })
+    os.remove(temp_filename)
 
-    return {"detections": detections}
+    return { "detections": boxes }
