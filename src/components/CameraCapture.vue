@@ -70,7 +70,7 @@ const captureAndDetect = async () => {
   const formData = new FormData()
   formData.append('file', blob, 'frame.jpg')
 
-  const response = await fetch('http://127.0.0.1:8000/detect', {
+  const response = await fetch('https://trash-detector-s9ye.onrender.com', {
     method: 'POST',
     body: formData,
   })
