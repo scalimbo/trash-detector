@@ -19,6 +19,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 
+// ✅ Load backend API URL from .env file
+const apiURL = import.meta.env.VITE_API_URL
+
 const video = ref(null)
 const canvas = ref(null)
 const showResult = ref(false)
@@ -70,35 +73,77 @@ const captureAndDetect = async () => {
   const formData = new FormData()
   formData.append('file', blob, 'frame.jpg')
 
-  const response = await fetch('https://trash-detector-s9ye.onrender.com', {
-    method: 'POST',
-    body: formData,
-  })
-  const result = await response.json()
-  detections.value = result.detections || []
+  try {
+    const response = await fetch(`${apiURL}/detect`, {
+      method: 'POST',
+      body: formData,
+    })
 
-  ctx.clearRect(0, 0, can.width, can.height)
-  ctx.drawImage(vid, 0, 0, can.width, can.height)
+    const result = await response.json()
+    detections.value = result.detections || []
 
-  ctx.lineWidth = 2
-  ctx.font = '16px Arial'
-  ctx.strokeStyle = 'lime'
-  ctx.fillStyle = 'lime'
+    ctx.clearRect(0, 0, can.width, can.height)
+    ctx.drawImage(vid, 0, 0, can.width, can.height)
 
-  detections.value.forEach((det) => {
-    const [x1, y1, x2, y2] = det.bbox
-    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1)
-    ctx.fillText(
-      `${det.class} (${(det.confidence * 100).toFixed(1)}%)`,
-      x1,
-      y1 > 20 ? y1 - 5 : y1 + 15,
-    )
-  })
+    ctx.lineWidth = 2
+    ctx.font = '16px Arial'
+    ctx.strokeStyle = 'lime'
+    ctx.fillStyle = 'lime'
 
-  showResult.value = true
+    detections.value.forEach((det) => {
+      const [x1, y1, x2, y2] = det.bbox
+      ctx.strokeRect(x1, y1, x2 - x1, y2 - y1)
+      ctx.fillText(
+        `${det.class} (${(det.confidence * 100).toFixed(1)}%)`,
+        x1,
+        y1 > 20 ? y1 - 5 : y1 + 15,
+      )
+    })
+
+    showResult.value = true
+  } catch (error) {
+    console.error('Detection error:', error)
+  }
 }
 
 const resetView = () => {
   showResult.value = false
 }
 </script>
+
+<style scoped>
+.camera-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+}
+
+.camera-video,
+.camera-canvas {
+  width: 100%;
+  max-width: 480px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.button-group {
+  margin-top: 1rem;
+  display: flex;
+  gap: 1rem;
+}
+
+button {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  border-radius: 6px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+</style>
